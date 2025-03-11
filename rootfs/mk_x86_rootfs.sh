@@ -2,7 +2,9 @@
 
 MNTDIR=/mnt/rootfs
 mkdir -p rootfs 
-sudo debootstrap --arch amd64 --variant=minbase --include=whiptail,ca-certificates,tzdata buster rootfs https://mirrors.ustc.edu.cn/debian/
+rm ./debian10-base-x86.ext4
+sudo debootstrap --arch amd64 --variant=minbase --include=whiptail,ca-certificates,tzdata,gcc,iproute2,openssh-server,gdb,nfs-common,iputils-ping,isc-dhcp-client,kmod,pciutils,ufw,vim \
+    buster rootfs https://mirrors.ustc.edu.cn/debian/
 dd if=/dev/zero of=debian10-base-x86.ext4 bs=1M count=2048
 mkfs.ext4 debian10-base-x86.ext4
 sudo mount -t ext4 debian10-base-x86.ext4 $MNTDIR/
@@ -16,11 +18,12 @@ sudo mount -o bind /dev/pts $MNTDIR/dev/pts
 
 cd ..
 sudo make modules_install INSTALL_MOD_PATH=$MNTDIR
+sudo make headers_install INSTALL_HDR_PATH=$MNTDIR/usr
 cd rootfs
 sudo chroot $MNTDIR /bin/bash -c "apt update"
 sudo chroot $MNTDIR /bin/bash -c "apt install -y systemd sudo rsyslog udev"
 sudo chroot $MNTDIR /bin/bash -c "useradd -s '/bin/bash' -m -G adm,sudo wq"
-sudo chroot $MNTDIR /bin/bash -c "echo 'wq:wq' | passwd wq"
+sudo chroot $MNTDIR /bin/bash -c "echo 'wq:wq' | chpasswd"
 sudo chroot $MNTDIR /bin/bash -c "echo "debian10" > /etc/hostname"
 sudo chroot $MNTDIR /bin/bash -c "cp /lib/systemd/system/serial-getty@.service /lib/systemd/system/serial-getty@ttyAMA0.service"
 sudo chroot $MNTDIR /bin/bash -c "systemctl enable serial-getty@ttyAMA0.service"
