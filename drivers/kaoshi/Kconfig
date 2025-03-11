@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# KAOSHI device configuration
+#
+
+menuconfig KAOSHI
+	bool "KAOSHI drivers"
+    depends on PREEMPT_RT
+	help
+	  KAOSHI.
+
+	  Select this option if you want your kernel to support KAOSHI.
+
+if KAOSHI
+
+source "drivers/kaoshi/stackhack/Kconfig"
+
+endif # KAOSHI
