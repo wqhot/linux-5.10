@@ -104,6 +104,10 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
+#ifdef CONFIG_STACK_HACK_PROTECT
+#include <linux/set_memory.h>
+#endif
+
 #include <trace/events/sched.h>
 
 #define CREATE_TRACE_POINTS
@@ -214,11 +218,15 @@ static int free_vm_stack_cache(unsigned int cpu)
 
 static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 {
-#ifdef CONFIG_VMAP_STACK
+#ifdef CONFIG_VMAP_STACK // 内核栈采用 vmalloc 分配
 	void *stack;
 	int i;
+#ifdef CONFIG_STACK_HACK_PROTECT
+	int ret;
+	struct vm_area_struct *vma;
+#endif
 
-	for (i = 0; i < NR_CACHED_STACKS; i++) {
+	for (i = 0; i < NR_CACHED_STACKS; i++) { // 遍历每个缓存槽，获取已经分配好的栈
 		struct vm_struct *s;
 
 		s = this_cpu_xchg(cached_stacks[i], NULL);
@@ -242,12 +250,15 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 	 * so memcg accounting is performed manually on assigning/releasing
 	 * stacks to tasks. Drop __GFP_ACCOUNT.
 	 */
+#ifdef CONFIG_STACK_HACK_PROTECT
+	stack = __vmalloc_node_range(THREAD_SIZE + 2 * PAGE_SIZE, THREAD_ALIGN,
+#else
 	stack = __vmalloc_node_range(THREAD_SIZE, THREAD_ALIGN,
+#endif
 				     VMALLOC_START, VMALLOC_END,
 				     THREADINFO_GFP & ~__GFP_ACCOUNT,
 				     PAGE_KERNEL,
 				     0, node, __builtin_return_address(0));
-
 	/*
 	 * We can't call find_vm_area() in interrupt context, and
 	 * free_thread_stack() can be called in interrupt context,
@@ -255,6 +266,24 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 	 */
 	if (stack) {
 		tsk->stack_vm_area = find_vm_area(stack);
+#ifdef CONFIG_STACK_HACK_PROTECT
+		set_memory_np((unsigned long)stack, PAGE_SIZE);
+		set_memory_np((unsigned long)stack + THREAD_SIZE + PAGE_SIZE, PAGE_SIZE);
+		current->stack_guard[0].start = (unsigned long)stack;
+		current->stack_guard[0].end = (unsigned long)stack + PAGE_SIZE;
+		current->stack_guard[1].start = (unsigned long)stack + THREAD_SIZE + PAGE_SIZE;
+		current->stack_guard[1].end = (unsigned long)stack + THREAD_SIZE + 2*PAGE_SIZE;
+// 		tsk->mm;
+// 		ret = set_memory_ro((unsigned long)stack, THREAD_SIZE / PAGE_SHIFT);
+// 		if (ret) {
+// 			printk(KERN_ERR "set_memory_ro fail: %d\n", ret);
+// 		} else {
+// 			if (tsk->stack_vm_area)
+// 				tsk->stack_vm_area->vm_ops = &my_vm_ops;
+// 		}
+		stack = stack + PAGE_SIZE;
+#else
+#endif
 		tsk->stack = stack;
 	}
 	return stack;

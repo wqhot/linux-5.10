@@ -3,3 +3,8 @@ config KAOSHI_STACKHACK
 	tristate "kaoshi stackhack"
 	help
 	  kaoshi stackhack
+
+config STACK_HACK_PROTECT
+	bool "Protect against stack hacking"
+	help
+	  This option help to protect against stack hacking.

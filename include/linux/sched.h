@@ -667,6 +667,10 @@ struct task_struct {
 	randomized_struct_fields_start
 
 	void				*stack;
+#ifdef CONFIG_STACK_HACK_PROTECT
+    unsigned long       *user_stack_start;  // 用户栈起始地址（低地址）
+    unsigned long       *user_stack_end;    // 用户栈结束地址（高地址）
+#endif
 	refcount_t			usage;
 	/* Per task flags (PF_*), defined further below: */
 	unsigned int			flags;
