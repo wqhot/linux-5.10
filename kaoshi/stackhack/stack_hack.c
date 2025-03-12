@@ -15,22 +15,26 @@ struct stack_write_request {
 
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
     struct stack_write_request req;
+    struct pid *pid_struct;
+    struct task_struct *tsk;
+    unsigned long data;
+    int ret;
 
     if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
         return -EFAULT;
 
-    struct pid *pid_struct = find_get_pid(req.pid);
+    pid_struct = find_get_pid(req.pid);
     if (!pid_struct)
         return -ESRCH;
 
-    struct task_struct *tsk = pid_task(pid_struct, PIDTYPE_PID);
+    tsk = pid_task(pid_struct, PIDTYPE_PID);
     if (!tsk) {
         put_pid(pid_struct);
         return -ESRCH;
     }
 
-    unsigned long data = req.data;
-    int ret = access_process_vm(tsk, req.addr, &data, sizeof(data), FOLL_WRITE);
+    data = req.data;
+    ret = access_process_vm(tsk, req.addr, &data, sizeof(data), FOLL_WRITE);
     
     put_pid(pid_struct);
     return (ret == sizeof(data)) ? 0 : -EIO;
@@ -40,15 +44,15 @@ static struct file_operations fops = {
     .unlocked_ioctl = device_ioctl,
 };
 
-static int __init module_init(void) {
+static int __init stack_hack_init(void) {
     register_chrdev(0, DEVICE_NAME, &fops);
     return 0;
 }
 
-static void __exit module_exit(void) {
+static void __exit stack_hack_exit(void) {
     unregister_chrdev(0, DEVICE_NAME);
 }
 
-module_init(module_init);
-module_exit(module_exit);
+module_init(stack_hack_init);
+module_exit(stack_hack_exit);
 MODULE_LICENSE("GPL");

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config KAOSHI_STACKHACK
-	def_bool KAOSHI
+	tristate "kaoshi stackhack"
 	help
-	  KAOSHI STACKHACK
+	  kaoshi stackhack

@@ -5,6 +5,8 @@
 #
 mainmenu "Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
 
+source "kaoshi/Kconfig"
+
 source "scripts/Kconfig.include"
 
 source "init/Kconfig"

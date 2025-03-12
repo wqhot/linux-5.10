@@ -4,7 +4,7 @@
 #
 
 menuconfig KAOSHI
-	bool "KAOSHI drivers"
+	tristate "KAOSHI drivers"
     depends on PREEMPT_RT
 	help
 	  KAOSHI.
@@ -13,6 +13,6 @@ menuconfig KAOSHI
 
 if KAOSHI
 
-source "drivers/kaoshi/stackhack/Kconfig"
+source "kaoshi/stackhack/Kconfig"
 
 endif # KAOSHI
