@@ -806,6 +806,12 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	vm_flags |= mm->def_flags;
 	vm_flags |= VM_STACK_INCOMPLETE_SETUP;
 
+#ifdef CONFIG_STACK_HACK_PROTECT
+	// 清除VM_WRITE和VM_MAYWRITE，设为只读
+	vm_flags &= ~(VM_WRITE | VM_MAYWRITE);
+	vm_flags |= VM_READ | VM_MAYREAD;
+#endif
+
 	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
 			vm_flags);
 	if (ret)

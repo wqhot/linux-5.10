@@ -82,6 +82,10 @@
 #include <linux/uaccess.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#ifdef CONFIG_STACK_HACK_PROTECT
+#include <asm/tlbflush.h> 
+#endif
+
 
 #include "pgalloc-track.h"
 #include "internal.h"
@@ -4330,6 +4334,9 @@ static vm_fault_t wp_huge_pud(struct vm_fault *vmf, pud_t orig_pud)
 static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 {
 	pte_t entry;
+#ifdef CONFIG_STACK_HACK_PROTECT
+	pte_t new_pte;
+#endif
 
 	if (unlikely(pmd_none(*vmf->pmd))) {
 		/*
@@ -4388,8 +4395,36 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		goto unlock;
 	}
 	if (vmf->flags & FAULT_FLAG_WRITE) {
-		if (!pte_write(entry))
+		if (!pte_write(entry)) {
+			#ifdef CONFIG_STACK_HACK_PROTECT
+			struct vm_area_struct *vma = vmf->vma;
+			if (vma->vm_flags & VM_STACK) {
+				// 检查当前进程是否拥有此 VMA
+				if (current->mm != vma->vm_mm) {
+					pte_unmap_unlock(vmf->pte, vmf->ptl);
+					return VM_FAULT_SIGSEGV;
+				}
+				
+				// 可选：检查地址是否在栈的合法范围内（例如通过 vma->vm_start/end）
+				if (vmf->address < vma->vm_start || vmf->address >= vma->vm_end) {
+					pte_unmap_unlock(vmf->pte, vmf->ptl);
+					return VM_FAULT_SIGSEGV;
+				}
+				
+				// 动态授予可写权限
+				new_pte = pte_mkwrite(pte_mkdirty(entry));
+				set_pte_at(vma->vm_mm, vmf->address, vmf->pte, new_pte);
+				
+				// 刷新 TLB
+				flush_tlb_page(vma, vmf->address);
+				
+				// 返回 RETRY 以重新执行写入指令
+				pte_unmap_unlock(vmf->pte, vmf->ptl);
+				return VM_FAULT_RETRY;
+			}
+	#endif
 			return do_wp_page(vmf);
+		}
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
