@@ -334,6 +334,10 @@ struct vm_area_struct {
 	pgprot_t vm_page_prot;
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 
+#ifdef CONFIG_STACK_HACK_PROTECT
+	pid_t owner_tgid;
+#endif
+
 	/*
 	 * For areas with an address space and backing store,
 	 * linkage into the address_space->i_mmap interval tree.
@@ -406,6 +410,10 @@ struct mm_struct {
 		unsigned long task_size;	/* size of task vm space */
 		unsigned long highest_vm_end;	/* highest vma end address */
 		pgd_t * pgd;
+
+#ifdef CONFIG_STACK_HACK_PROTECT
+	pid_t owner_tgid;
+#endif
 
 #ifdef CONFIG_MEMBARRIER
 		/**

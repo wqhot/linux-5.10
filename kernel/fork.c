@@ -550,6 +550,10 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		} else if (anon_vma_fork(tmp, mpnt))
 			goto fail_nomem_anon_vma_fork;
 		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+#ifdef CONFIG_STACK_HACK_PROTECT
+		// tmp->owner_tgid = mm ->owner_tgid;
+		tmp->vm_flags |= VM_STACK_HACK_PROTECT;
+#endif
 		file = tmp->vm_file;
 		if (file) {
 			struct inode *inode = file_inode(file);
@@ -1375,6 +1379,9 @@ static struct mm_struct *dup_mm(struct task_struct *tsk,
 		goto fail_nomem;
 
 	memcpy(mm, oldmm, sizeof(*mm));
+#ifdef CONFIG_STACK_HACK_PROTECT
+	// mm->owner_tgid = tsk->tgid;
+#endif
 
 	if (!mm_init(mm, tsk, mm->user_ns))
 		goto fail_nomem;

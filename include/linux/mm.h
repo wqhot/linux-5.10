@@ -291,6 +291,9 @@ extern unsigned int kobjsize(const void *objp);
 # define VM_SOFTDIRTY	0x08000000	/* Not soft dirty clean area */
 #else
 # define VM_SOFTDIRTY	0
+#ifdef CONFIG_STACK_HACK_PROTECT
+#define VM_STACK_HACK_PROTECT	0x08000000
+#endif
 #endif
 
 #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */

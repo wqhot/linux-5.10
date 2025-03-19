@@ -2884,7 +2884,13 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		entry = pte_sw_mkyoung(entry);
+// #ifdef CONFIG_STACK_HACK_PROTECT
+// 		entry = pte_mkdirty(entry);
+// 		entry = pte_wrprotect(entry);
+// 		vma->owner_tgid = current->tgid;
+// #else
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+// #endif
 		/*
 		 * Clear the pte entry and flush it first, before updating the
 		 * pte with the new entry. This will avoid a race condition
@@ -4337,7 +4343,6 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 #ifdef CONFIG_STACK_HACK_PROTECT
 	pte_t new_pte;
 #endif
-
 	if (unlikely(pmd_none(*vmf->pmd))) {
 		/*
 		 * Leave __pte_alloc() until later: because vm_ops->fault may
@@ -4396,33 +4401,32 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 	}
 	if (vmf->flags & FAULT_FLAG_WRITE) {
 		if (!pte_write(entry)) {
-			#ifdef CONFIG_STACK_HACK_PROTECT
-			struct vm_area_struct *vma = vmf->vma;
-			if (vma->vm_flags & VM_STACK) {
-				// 检查当前进程是否拥有此 VMA
-				if (current->mm != vma->vm_mm) {
-					pte_unmap_unlock(vmf->pte, vmf->ptl);
-					return VM_FAULT_SIGSEGV;
-				}
+// #ifdef CONFIG_STACK_HACK_PROTECT
+// 			if (vmf->vma->vm_flags & VM_STACK) {
+// 				// 检查当前进程是否拥有此 VMA
+// 				if (current->mm != vmf->vma->vm_mm) {
+// 					pte_unmap_unlock(vmf->pte, vmf->ptl);
+// 					return VM_FAULT_SIGSEGV;
+// 				}
 				
-				// 可选：检查地址是否在栈的合法范围内（例如通过 vma->vm_start/end）
-				if (vmf->address < vma->vm_start || vmf->address >= vma->vm_end) {
-					pte_unmap_unlock(vmf->pte, vmf->ptl);
-					return VM_FAULT_SIGSEGV;
-				}
+// 				// 可选：检查地址是否在栈的合法范围内（例如通过 vma->vm_start/end）
+// 				if (vmf->address < vmf->vma->vm_start || vmf->address >= vmf->vma->vm_end) {
+// 					pte_unmap_unlock(vmf->pte, vmf->ptl);
+// 					return VM_FAULT_SIGSEGV;
+// 				}
 				
-				// 动态授予可写权限
-				new_pte = pte_mkwrite(pte_mkdirty(entry));
-				set_pte_at(vma->vm_mm, vmf->address, vmf->pte, new_pte);
+// 				// 动态授予可写权限
+// 				new_pte = pte_mkwrite(pte_mkdirty(entry));
+// 				set_pte_at(vmf->vma->vm_mm, vmf->address, vmf->pte, new_pte);
 				
-				// 刷新 TLB
-				flush_tlb_page(vma, vmf->address);
+// 				// 刷新 TLB
+// 				flush_tlb_page(vmf->vma, vmf->address);
 				
-				// 返回 RETRY 以重新执行写入指令
-				pte_unmap_unlock(vmf->pte, vmf->ptl);
-				return VM_FAULT_RETRY;
-			}
-	#endif
+// 				// 返回 RETRY 以重新执行写入指令
+// 				pte_unmap_unlock(vmf->pte, vmf->ptl);
+// 				return VM_FAULT_RETRY;
+// 			}
+// #endif
 			return do_wp_page(vmf);
 		}
 		entry = pte_mkdirty(entry);
