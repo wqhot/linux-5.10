@@ -805,6 +805,11 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		vm_flags &= ~VM_EXEC;
 	vm_flags |= mm->def_flags;
 	vm_flags |= VM_STACK_INCOMPLETE_SETUP;
+#ifdef CONFIG_STACK_HACK_PROTECT
+	vma->owner_tgid = current->tgid;
+	vm_flags |= VM_STACK_HACK_PROTECT;
+	// vm_flags &= ~VM_WRITE;
+#endif
 
 	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
 			vm_flags);

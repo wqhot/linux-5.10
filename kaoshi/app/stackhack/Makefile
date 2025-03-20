@@ -5,13 +5,13 @@ CFLAGS = -O0
 all: target attacker normal
 
 target: target.c
-	$(CC) $(CFLAGS) -o target target.c
+	$(CC) $(CFLAGS) -o target.o target.c
 
 attacker: attacker.c
-	$(CC) $(CFLAGS) -o attacker attacker.c
+	$(CC) $(CFLAGS) -o attacker.o attacker.c
 
 normal: normal.cpp
-	$(CXX) $(CFLAGS) -o normal normal.cpp
+	$(CXX) $(CFLAGS) -o normal.o normal.cpp
 
 clean:
-	rm -f target attacker normal
+	rm -f target.o attacker.o normal.o

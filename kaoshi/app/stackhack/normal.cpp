@@ -53,6 +53,8 @@ void thread_func2(int v) {
 }
 
 int main(){
+    int dummy;
+    printf("main thread address: %p\n", &dummy);
     std::thread t1(thread_func, 10);
     t1.detach();
     std::thread t2(thread_func2, 100);
