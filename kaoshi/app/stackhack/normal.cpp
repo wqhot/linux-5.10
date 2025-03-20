@@ -12,6 +12,7 @@ public:
     }
     void leak_stack() {
         printf("栈地址：%p\n", (void*)&dummy); // 泄漏栈地址
+        printf("pid: %d\n", getpid());
         fflush(stdout);
         while(1) {
             sleep(1); // 保持运行
@@ -21,49 +22,44 @@ public:
     }
 };
 
-struct stack_write_request {
-    int pid;
-    unsigned long addr;
-    unsigned long data;
-};
-
-class attacker {
-    void attack(int pid, unsigned long addr, unsigned long data) {
-        // 伪造请求
-        struct stack_write_request req;
-        req.pid = pid;
-        req.addr = addr;
-        req.data = data;
-        // 打开设备
-        int fd = open("/dev/stack_hack", O_RDWR);
-        if (fd < 0) {
-            perror("打开设备失败");
-            return;
+class target2 {
+    public:
+        float dummy;
+        target2() {
+            dummy = 14;
         }
-        // 发送攻击请求
-        if (ioctl(fd, WRITE_STACK, &req) < 0) {
-            perror("ioctl失败");
-            close(fd);
-            return;
+        void leak_stack() {
+            printf("栈地址：%p\n", (void*)&dummy); // 泄漏栈地址
+            printf("pid: %d\n", getpid());
+            fflush(stdout);
+            while(1) {
+                sleep(1); // 保持运行
+                printf("stack addr:  %p\n", (void*)&dummy);
+                printf("stack value: %f\n", dummy);
+            }
         }
-        close(fd);
-    }
+    };
 
-    void normal(target &t) {
-        t.dummy = 144;
-    }
+void thread_func(int v) {
+    target local_tgt; 
+    local_tgt.dummy = v;
+    local_tgt.leak_stack();
+}
+
+void thread_func2(int v) {
+    target2 local_tgt; 
+    local_tgt.dummy = v;
+    local_tgt.leak_stack();
 }
 
 int main(){
-    target t;
-    attacker a;
-    a.normal(t);
-    std::thread t1(&target::leak_stack, &t);
+    std::thread t1(thread_func, 10);
     t1.detach();
-    int pid = getpid();
-    unsigned long addr = (unsigned long)&t.dummy;
-    unsigned long data = 256;
-    sleep(5);
-    a.attack(pid, addr, data);
+    std::thread t2(thread_func2, 100);
+    t2.detach();
+    while(1)
+    {
+        sleep(1);
+    }
     return 0;
 }
