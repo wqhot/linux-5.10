@@ -4,6 +4,7 @@
  *  Copyright (C) 2001, 2002 Andi Kleen, SuSE Labs.
  *  Copyright (C) 2008-2009, Red Hat Inc., Ingo Molnar
  */
+#include "linux/mm.h"
 #include <linux/sched.h>		/* test_thread_flag(), ...	*/
 #include <linux/sched/task_stack.h>	/* task_stack_*(), ...		*/
 #include <linux/kdebug.h>		/* oops_begin/end, ...		*/
@@ -33,6 +34,10 @@
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
+
+#ifdef CONFIG_STACK_HACK_PROTECT
+#include <linux/blk_types.h>
+#endif
 
 /*
  * Returns 0 if mmiotrace is disabled, or if the fault is not
@@ -1219,6 +1224,11 @@ void do_user_addr_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	vm_fault_t fault;
 	unsigned int flags = FAULT_FLAG_DEFAULT;
+#ifdef CONFIG_STACK_HACK_PROTECT
+	struct pid *pid_struct;
+	struct task_struct *tsk_hacked;
+	vm_fault_t ret;
+#endif
 
 	tsk = current;
 	mm = tsk->mm;
@@ -1355,7 +1365,53 @@ good_area:
 		bad_area_access_error(regs, hw_error_code, address, vma);
 		return;
 	}
+#ifdef CONFIG_STACK_HACK_PROTECT
+	if ((hw_error_code & X86_PF_WRITE) && (vma->vm_flags & VM_STACK_HACK_PROTECT)) {
+		if (vma->owner_tgid != tsk->tgid) {
+			pid_struct = find_get_pid(vma->owner_tgid);
+			if (!pid_struct) {
+				printk(KERN_ERR "Failed to find_get_pid\n");
+				return;
+			}
+			tsk_hacked = pid_task(pid_struct, PIDTYPE_PID);
+			if (!tsk_hacked) {
+				printk(KERN_ERR "Failed to find_task_by_pid\n");
+				put_pid(pid_struct);
+				return;
+			}
+			printk(KERN_ALERT "Stack hack detected!\n");
+			printk(KERN_ALERT "Task: %s (tgid %d, pid %d) attempting to modify stack of task %d, %s\n",
+				tsk->comm, tsk->tgid, tsk->pid, vma->owner_tgid, tsk_hacked->comm);
+			printk(KERN_ALERT "Address: 0x%lx\n", address);
+			printk(KERN_ALERT "Instruction pointer: 0x%lx\n", instruction_pointer(regs));
+			printk(KERN_ALERT "Stack pointer: 0x%lx\n", user_stack_pointer(regs));
+			// 打印栈回溯信息
+			dump_stack();
+			// 终止违规进程
+			force_sig(SIGKILL);
+			return;
+		}
+		else {
+			unsigned long orig_flags = vma->vm_flags;
+			unsigned long start = address & PAGE_MASK;
+			unsigned long end = start + PAGE_SIZE;
+			// 设置为可读可写
+			// pgprot_t prot = PROT_READ | PROT_WRITE;
+			// if (vma->vm_flags & VM_EXEC)
+			// 	prot |= PROT_EXEC;
+        	// vma->vm_flags |= VM_WRITE;
+			
+			// change_protection(vma, start, end, prot, 0);
+			ret = handle_mm_fault(vma, address, FAULT_FLAG_WRITE, regs);		
 
+			vma->vm_flags = orig_flags;
+			if (ret & VM_FAULT_ERROR) {
+				bad_area_access_error(regs, hw_error_code, address, vma);
+			}
+			return;
+		}
+	}
+#endif
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo

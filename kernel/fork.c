@@ -12,6 +12,7 @@
  * management can be a bitch. See 'mm/memory.c': 'copy_page_range()'
  */
 
+#include "linux/sched.h"
 #include <linux/anon_inodes.h>
 #include <linux/slab.h>
 #include <linux/sched/autogroup.h>
@@ -2199,6 +2200,20 @@ static __latent_entropy struct task_struct *copy_process(
 		p->group_leader = p;
 		p->tgid = p->pid;
 	}
+
+#ifdef CONFIG_STACK_HACK_PROTECT
+	if (p->mm && !(clone_flags & CLONE_THREAD)) {
+		struct vm_area_struct *vma;
+		down_read(&p->mm->mmap_lock);
+		for (vma = p->mm->mmap; vma; vma = vma->vm_next) {
+			if ((vma->vm_flags & VM_STACK_HACK_PROTECT) && 
+				(vma->vm_flags & VM_STACK)) {
+				vma->owner_tgid = p->tgid;
+			}
+		}
+		up_read(&p->mm->mmap_lock);
+	}
+#endif
 
 	p->nr_dirtied = 0;
 	p->nr_dirtied_pause = 128 >> (PAGE_SHIFT - 10);

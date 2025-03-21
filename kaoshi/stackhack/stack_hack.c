@@ -4,6 +4,7 @@
 #include <linux/pid.h>
 #include <linux/uaccess.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/kdev_t.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
@@ -27,6 +28,8 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct task_struct *tsk;
 	unsigned long data;
 	int ret;
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
 
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req))) {
 		printk(KERN_ERR "Failed to copy_from_user\n");
@@ -45,6 +48,35 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		put_pid(pid_struct);
 		return -ESRCH;
 	}
+
+
+	// vma = find_vma(mm, addr);
+	mm = get_task_mm(tsk);
+
+
+	down_read(&mm->mmap_lock); // 加读锁
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		printk(KERN_INFO "VMA: start=0x%lx, flags=0x%lx\n", 
+			vma->vm_start, vma->vm_flags);
+		
+		// // 尝试获取起始地址对应的物理地址（需处理页表）
+		// pte_t *pte = lookup_address(vma->vm_start, NULL);
+		// if (pte && pte_present(*pte)) {
+		// 	unsigned long pfn = pte_pfn(*pte);
+		// 	unsigned long phys_addr = pfn << PAGE_SHIFT;
+		// 	printk(KERN_INFO "物理地址起始: %lx\n", phys_addr);
+		// } else {
+		// 	printk(KERN_INFO "无法获取物理地址\n");
+		// }
+	}
+	up_read(&mm->mmap_lock); // 释放锁
+
+
+	vma = find_vma(mm, req.addr);
+	if (!vma || vma->vm_start > req.addr)
+		return -EINVAL;
+	printk(KERN_INFO "vma owner_tgid: %d\n", vma->owner_tgid);
+	printk(KERN_INFO "vma vmflags: 0x%lx\n", vma->vm_flags);
 
 	data = req.data;
 	ret = access_process_vm(tsk, req.addr, &data, sizeof(data), FOLL_WRITE);

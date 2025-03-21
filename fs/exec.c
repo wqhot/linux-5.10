@@ -808,7 +808,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 #ifdef CONFIG_STACK_HACK_PROTECT
 	vma->owner_tgid = current->tgid;
 	vm_flags |= VM_STACK_HACK_PROTECT;
-	// vm_flags &= ~VM_WRITE;
+	vm_flags &= ~VM_WRITE;
 #endif
 
 	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 qemu-system-x86_64 \
- -s -S \
+ -s $1 \
  -kernel ../arch/x86/boot/bzImage \
  -boot c \
  -M q35 \
