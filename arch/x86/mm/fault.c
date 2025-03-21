@@ -1395,20 +1395,20 @@ good_area:
 			unsigned long orig_flags = vma->vm_flags;
 			unsigned long start = address & PAGE_MASK;
 			unsigned long end = start + PAGE_SIZE;
-			// 设置为可读可写
-			// pgprot_t prot = PROT_READ | PROT_WRITE;
-			// if (vma->vm_flags & VM_EXEC)
-			// 	prot |= PROT_EXEC;
-        	// vma->vm_flags |= VM_WRITE;
+			pgprot_t newprot;
+			if (orig_flags & VM_EXEC)
+				newprot = vm_get_page_prot(VM_READ | VM_WRITE | VM_EXEC);
+			else
+				newprot = vm_get_page_prot(VM_READ | VM_WRITE);
 			
-			// change_protection(vma, start, end, prot, 0);
-			ret = handle_mm_fault(vma, address, FAULT_FLAG_WRITE, regs);		
+			change_protection(vma, start, end, newprot, 0);
+			// ret = handle_mm_fault(vma, address, FAULT_FLAG_WRITE, regs);		
 
-			vma->vm_flags = orig_flags;
-			if (ret & VM_FAULT_ERROR) {
-				bad_area_access_error(regs, hw_error_code, address, vma);
-			}
-			return;
+			// vma->vm_flags = orig_flags;
+			// if (ret & VM_FAULT_ERROR) {
+			// 	bad_area_access_error(regs, hw_error_code, address, vma);
+			// }
+			// return;
 		}
 	}
 #endif
