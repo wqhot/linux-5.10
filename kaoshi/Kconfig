@@ -5,7 +5,7 @@
 
 menuconfig KAOSHI
 	tristate "KAOSHI drivers"
-    depends on PREEMPT_RT
+    depends on MMU
 	help
 	  KAOSHI.
 

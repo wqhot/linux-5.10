@@ -6,6 +6,7 @@
  *
  *  Copyright (C) 1991-2002  Linus Torvalds
  */
+#include "linux/mm.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 #undef CREATE_TRACE_POINTS
@@ -4403,7 +4404,42 @@ context_switch(struct rq *rq, struct task_struct *prev,
 			prev->active_mm = NULL;
 		}
 	}
-
+#ifdef CONFIG_STACK_HACK_PROTECT
+	if (prev->tgid != next->tgid) {
+		struct mm_struct *prev_mm = prev->mm;
+		struct mm_struct *next_mm = next->mm;
+		
+		/* 对于切换出去的任务的栈，禁用写权限 */
+		if (prev_mm) {
+			struct vm_area_struct *vma;
+			// down_write_trylock(&prev_mm->mmap_lock);
+			for (vma = prev_mm->mmap; vma; vma = vma->vm_next) {
+				if ((vma->vm_flags & VM_STACK_HACK_PROTECT) && 
+					(vma->vm_flags & VM_STACK)) {
+                        vma->vm_flags &= ~VM_WRITE;
+                        vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+				}
+			}
+			// up_write(&prev_mm->mmap_lock);
+			// flush_tlb_mm(prev_mm);
+		}
+		
+		/* 对于切换进来的任务的栈，启用写权限 */
+		if (next_mm) {
+			struct vm_area_struct *vma;
+			// down_write_trylock(&next_mm->mmap_lock);
+			for (vma = next_mm->mmap; vma; vma = vma->vm_next) {
+				if ((vma->vm_flags & VM_STACK_HACK_PROTECT) && 
+					(vma->vm_flags & VM_STACK)) {
+                        vma->vm_flags |= VM_WRITE;
+                        vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+				}
+			}
+			// up_write(&next_mm->mmap_lock);
+			// flush_tlb_mm(next_mm);
+		}
+	}
+#endif
 	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 
 	prepare_lock_switch(rq, next, rf);
