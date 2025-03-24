@@ -75,7 +75,9 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	vma = find_vma(mm, req.addr);
 	if (!vma || vma->vm_start > req.addr)
 		return -EINVAL;
+#ifdef CONFIG_STACK_HACK_PROTECT
 	printk(KERN_INFO "vma owner_tgid: %d\n", vma->owner_tgid);
+#endif
 	printk(KERN_INFO "vma vmflags: 0x%lx\n", vma->vm_flags);
 
 	data = req.data;

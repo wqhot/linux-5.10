@@ -411,10 +411,6 @@ struct mm_struct {
 		unsigned long highest_vm_end;	/* highest vma end address */
 		pgd_t * pgd;
 
-#ifdef CONFIG_STACK_HACK_PROTECT
-	pid_t owner_tgid;
-#endif
-
 #ifdef CONFIG_MEMBARRIER
 		/**
 		 * @membarrier_state: Flags controlling membarrier behavior.

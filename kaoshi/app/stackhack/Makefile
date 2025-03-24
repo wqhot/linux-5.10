@@ -11,7 +11,7 @@ attacker: attacker.c
 	$(CC) $(CFLAGS) -o attacker.o attacker.c
 
 normal: normal.cpp
-	$(CXX) $(CFLAGS) -o normal.o normal.cpp
+	$(CXX) $(CFLAGS) -lpthread -o normal.o normal.cpp
 
 clean:
 	rm -f target.o attacker.o normal.o

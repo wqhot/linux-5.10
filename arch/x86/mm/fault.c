@@ -35,10 +35,6 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
 
-#ifdef CONFIG_STACK_HACK_PROTECT
-#include <linux/blk_types.h>
-#endif
-
 /*
  * Returns 0 if mmiotrace is disabled, or if the fault is not
  * handled by mmiotrace:
@@ -1224,11 +1220,6 @@ void do_user_addr_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	vm_fault_t fault;
 	unsigned int flags = FAULT_FLAG_DEFAULT;
-#ifdef CONFIG_STACK_HACK_PROTECT
-	struct pid *pid_struct;
-	struct task_struct *tsk_hacked;
-	vm_fault_t ret;
-#endif
 
 	tsk = current;
 	mm = tsk->mm;
@@ -1368,6 +1359,8 @@ good_area:
 #ifdef CONFIG_STACK_HACK_PROTECT
 	if ((hw_error_code & X86_PF_WRITE) && (vma->vm_flags & VM_STACK_HACK_PROTECT)) {
 		if (vma->owner_tgid != tsk->tgid) {
+			struct pid *pid_struct;
+			struct task_struct *tsk_hacked;
 			pid_struct = find_get_pid(vma->owner_tgid);
 			if (!pid_struct) {
 				printk(KERN_ERR "Failed to find_get_pid\n");
@@ -1391,27 +1384,6 @@ good_area:
 			force_sig(SIGKILL);
 			return;
 		}
-		// else {
-			// unsigned long orig_flags = vma->vm_flags;
-			// unsigned long start = address & PAGE_MASK;
-			// unsigned long end = start + PAGE_SIZE;
-			// pgprot_t newprot;
-			// if (orig_flags & VM_EXEC)
-			// 	newprot = vm_get_page_prot(VM_READ | VM_WRITE | VM_EXEC);
-			// else
-			// 	newprot = vm_get_page_prot(VM_READ | VM_WRITE);
-			
-			// vma->vm_flags |= VM_WRITE;    
-			// ret = handle_mm_fault(vma, address, FAULT_FLAG_WRITE, regs);
-
-			// change_protection(vma, start, end, newprot, 0);
-			// vma->vm_flags = orig_flags;
-			
-			// if (ret & VM_FAULT_ERROR) {
-			// 	bad_area_access_error(regs, hw_error_code, address, vma);
-			// }
-			// return;
-		// }
 	}
 #endif
 	/*
